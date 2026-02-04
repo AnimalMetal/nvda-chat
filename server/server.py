@@ -29,7 +29,7 @@ socketio = SocketIO(
 )
 
 # Paths - New Structure
-DATA_PATH = '/home/nvda-chat-server/data'
+DATA_PATH = '/home/metal/nvda-chat-server/data'
 USERS_DIR = os.path.join(DATA_PATH, 'users')
 USERS_INDEX_FILE = os.path.join(DATA_PATH, 'users_index.json')
 CHATS_FILE = os.path.join(DATA_PATH, 'chats.json')
@@ -328,6 +328,29 @@ def accept_friend(username):
         }, room=online_users[friend_username])
     
     return jsonify({'success': True, 'message': 'Friend request accepted'})
+
+@app.route('/api/friends/reject', methods=['POST'])
+@token_required
+def reject_friend(username):
+    data = request.json
+    friend_username = data.get('username', '').strip()
+    
+    user_friends = load_user_friends(username)
+    
+    if friend_username not in user_friends or user_friends[friend_username] != 'request':
+        return jsonify({'error': 'Friend request not found'}), 404
+    
+    # Simply remove the request (reject it)
+    del user_friends[friend_username]
+    save_user_friends(username, user_friends)
+    
+    # Also remove from the other user's sent requests
+    friend_friends = load_user_friends(friend_username)
+    if username in friend_friends and friend_friends[username] == 'pending':
+        del friend_friends[username]
+        save_user_friends(friend_username, friend_friends)
+    
+    return jsonify({'success': True, 'message': 'Friend request rejected'})
 
 @app.route('/api/chats', methods=['GET'])
 @token_required

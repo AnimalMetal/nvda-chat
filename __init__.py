@@ -540,12 +540,19 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             try:
                 resp = requests.post(f'{self.config["server_url"]}/api/friends/delete', headers={'Authorization': f'Bearer {self.token}'}, json={'username': username}, timeout=10)
                 if resp.status_code == 200: 
-                    # Suppress window title and announce message
+                    # Aggressive speech suppression
                     def announce():
                         import speech
                         speech.setSpeechMode(speech.SpeechMode.off)
                         self.load_friends()
-                        wx.CallLater(100, lambda: (speech.setSpeechMode(speech.SpeechMode.talk), ui.message(_("Friend deleted"))))
+                        
+                        def speak_message():
+                            speech.setSpeechMode(speech.SpeechMode.talk)
+                            ui.message(_("Friend deleted"))
+                            speech.setSpeechMode(speech.SpeechMode.off)
+                            wx.CallLater(200, lambda: speech.setSpeechMode(speech.SpeechMode.talk))
+                        
+                        wx.CallLater(100, speak_message)
                     wx.CallAfter(announce)
                 else: wx.CallAfter(lambda: ui.message(_("Error deleting friend")))
             except: wx.CallAfter(lambda: ui.message(_("Connection error")))
@@ -558,12 +565,19 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                 resp = requests.delete(f'{self.config["server_url"]}/api/chats/delete/{chat_id}', headers={'Authorization': f'Bearer {self.token}'}, timeout=10)
                 if resp.status_code == 200:
                     if chat_id in self.chats: del self.chats[chat_id]
-                    # Suppress window title and announce message
+                    # Aggressive speech suppression
                     def announce():
                         import speech
                         speech.setSpeechMode(speech.SpeechMode.off)
                         self.load_chats()
-                        wx.CallLater(100, lambda: (speech.setSpeechMode(speech.SpeechMode.talk), ui.message(_("Chat deleted"))))
+                        
+                        def speak_message():
+                            speech.setSpeechMode(speech.SpeechMode.talk)
+                            ui.message(_("Chat deleted"))
+                            speech.setSpeechMode(speech.SpeechMode.off)
+                            wx.CallLater(200, lambda: speech.setSpeechMode(speech.SpeechMode.talk))
+                        
+                        wx.CallLater(100, speak_message)
                     wx.CallAfter(announce)
                 else: wx.CallAfter(lambda: ui.message(_("Error deleting chat")))
             except: wx.CallAfter(lambda: ui.message(_("Connection error")))
@@ -617,13 +631,20 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                 resp = requests.delete(f'{self.config["server_url"]}/api/chats/group/delete/{chat_id}', headers={'Authorization': f'Bearer {self.token}'}, timeout=10)
                 if resp.status_code == 200:
                     if chat_id in self.chats: del self.chats[chat_id]
-                    # Suppress window title and announce message
+                    # Aggressive speech suppression
                     def announce():
                         import speech
                         speech.setSpeechMode(speech.SpeechMode.off)
                         self.load_chats()
                         if callback: callback()
-                        wx.CallLater(100, lambda: (speech.setSpeechMode(speech.SpeechMode.talk), ui.message(_("Group deleted"))))
+                        
+                        def speak_message():
+                            speech.setSpeechMode(speech.SpeechMode.talk)
+                            ui.message(_("Group deleted"))
+                            speech.setSpeechMode(speech.SpeechMode.off)
+                            wx.CallLater(200, lambda: speech.setSpeechMode(speech.SpeechMode.talk))
+                        
+                        wx.CallLater(100, speak_message)
                     wx.CallAfter(announce)
                 else: wx.CallAfter(lambda: ui.message(_("Error deleting group")))
             except: wx.CallAfter(lambda: ui.message(_("Connection error")))
@@ -1598,14 +1619,21 @@ class ChatWindow(wx.Frame):
         chat_id, chat = sorted_chats[sel]
         
         dlg = wx.MessageDialog(self, _("Delete this chat?"), _("Confirm"), wx.YES_NO | wx.ICON_QUESTION)
-        if dlg.ShowModal() == wx.ID_YES:
+        result = dlg.ShowModal()
+        dlg.Destroy()
+        
+        if result == wx.ID_YES:
+            # Suppress window title when focus returns
+            import speech
+            speech.setSpeechMode(speech.SpeechMode.off)
+            wx.CallLater(50, lambda: speech.setSpeechMode(speech.SpeechMode.talk))
+            
             self.plugin.delete_chat(chat_id)
             self.current_chat = None
             self.messagesText.Clear()
             self.chatTitle.SetLabel("")
             self.rightPanel.Hide()
             self.Layout()
-        dlg.Destroy()
     
 
     
@@ -1724,10 +1752,16 @@ class ChatWindow(wx.Frame):
         group_name = chat.get('name', 'this group')
         
         dlg = wx.MessageDialog(self, _("Delete '{name}' for EVERYONE?\nThis cannot be undone!").format(name=group_name), _("Delete Group"), wx.YES_NO | wx.ICON_WARNING)
-        
-        if dlg.ShowModal() == wx.ID_YES:
-            self.plugin.delete_group(chat_id, callback=lambda: self.refresh_chats())
+        result = dlg.ShowModal()
         dlg.Destroy()
+        
+        if result == wx.ID_YES:
+            # Suppress window title when focus returns
+            import speech
+            speech.setSpeechMode(speech.SpeechMode.off)
+            wx.CallLater(50, lambda: speech.setSpeechMode(speech.SpeechMode.talk))
+            
+            self.plugin.delete_group(chat_id, callback=lambda: self.refresh_chats())
 
     def onBack(self, e):
         """Go back to the chat list - hide the chat panel"""
@@ -2241,11 +2275,55 @@ class FriendsDialog(wx.Dialog):
             try:
                 resp = requests.post(f'{self.plugin.config["server_url"]}/api/friends/accept', headers={'Authorization': f'Bearer {self.plugin.token}'}, json={'username': username}, timeout=10)
                 if resp.status_code == 200:
-                    wx.CallAfter(lambda: (ui.message(f"Accepted!"), self.plugin.playSound('user_online'), self.loadFriendsData(), self.plugin.load_friends()))
+                    # Aggressive speech suppression
+                    def announce():
+                        import speech
+                        speech.setSpeechMode(speech.SpeechMode.off)
+                        self.plugin.playSound('user_online')
+                        self.loadFriendsData()
+                        self.plugin.load_friends()
+                        
+                        def speak_message():
+                            speech.setSpeechMode(speech.SpeechMode.talk)
+                            ui.message("Accepted!")
+                            speech.setSpeechMode(speech.SpeechMode.off)
+                            wx.CallLater(200, lambda: speech.setSpeechMode(speech.SpeechMode.talk))
+                        
+                        wx.CallLater(100, speak_message)
+                    wx.CallAfter(announce)
             except: wx.CallAfter(lambda: ui.message(_("Error")))
         threading.Thread(target=accept, daemon=True).start()
     
-    def onReject(self, e): ui.message(_("Coming soon"))
+    def onReject(self, e):
+        sel = self.requestsList.GetSelection()
+        if sel == wx.NOT_FOUND: return ui.message(_("Select request"))
+        txt = self.requestsList.GetString(sel).strip()
+        if txt.startswith("===") or "No" in txt or not txt: return ui.message(_("Select incoming"))
+        username = txt.split()[0]
+        if username not in self.pending_requests: return ui.message(_("Invalid"))
+        ui.message(_("Rejecting {user}...").format(user=username))
+        def reject():
+            try:
+                resp = requests.post(f'{self.plugin.config["server_url"]}/api/friends/reject', headers={'Authorization': f'Bearer {self.plugin.token}'}, json={'username': username}, timeout=10)
+                if resp.status_code == 200:
+                    # Aggressive speech suppression
+                    def announce():
+                        import speech
+                        speech.setSpeechMode(speech.SpeechMode.off)
+                        self.loadFriendsData()
+                        
+                        def speak_message():
+                            speech.setSpeechMode(speech.SpeechMode.talk)
+                            ui.message(_("Rejected!"))
+                            speech.setSpeechMode(speech.SpeechMode.off)
+                            wx.CallLater(200, lambda: speech.setSpeechMode(speech.SpeechMode.talk))
+                        
+                        wx.CallLater(100, speak_message)
+                    wx.CallAfter(announce)
+                else: wx.CallAfter(lambda: ui.message(_("Error")))
+            except: wx.CallAfter(lambda: ui.message(_("Error")))
+        threading.Thread(target=reject, daemon=True).start()
+    
     
     def onRefresh(self, e):
         self.loadFriendsData()
@@ -2257,24 +2335,50 @@ class FriendsDialog(wx.Dialog):
         username = self.friendsList.GetItemText(sel, 0)
         if not username or username == "No friends": return
         dlg = wx.MessageDialog(self, f"Delete {username}?", "Confirm", wx.YES_NO | wx.ICON_QUESTION)
-        if dlg.ShowModal() == wx.ID_YES:
+        result = dlg.ShowModal()
+        dlg.Destroy()
+        
+        if result == wx.ID_YES:
+            # Suppress window title when focus returns
+            import speech
+            speech.setSpeechMode(speech.SpeechMode.off)
+            wx.CallLater(50, lambda: speech.setSpeechMode(speech.SpeechMode.talk))
+            
             self.plugin.delete_friend(username)
             wx.CallLater(1000, self.loadFriendsData)
-        dlg.Destroy()
     
     def onAdd(self, e):
         dlg = wx.TextEntryDialog(self, _("Friend's username:"), _("Add Friend"))
-        if dlg.ShowModal() == wx.ID_OK:
-            username = dlg.GetValue().strip()
-            if username:
-                def add():
-                    try:
-                        resp = requests.post(f'{self.plugin.config["server_url"]}/api/friends/add', headers={'Authorization': f'Bearer {self.plugin.token}'}, json={'username': username}, timeout=10)
-                        if resp.status_code == 200: wx.CallAfter(lambda: (ui.message(_("Request sent!")), self.loadFriendsData()))
-                        else: wx.CallAfter(lambda: ui.message(_("Error")))
-                    except: wx.CallAfter(lambda: ui.message(_("Connection error")))
-                threading.Thread(target=add, daemon=True).start()
+        result = dlg.ShowModal()
+        username = dlg.GetValue().strip() if result == wx.ID_OK else None
         dlg.Destroy()
+        
+        if username:
+            # Suppress window title when focus returns
+            import speech
+            speech.setSpeechMode(speech.SpeechMode.off)
+            wx.CallLater(50, lambda: speech.setSpeechMode(speech.SpeechMode.talk))
+            
+            def add():
+                try:
+                    resp = requests.post(f'{self.plugin.config["server_url"]}/api/friends/add', headers={'Authorization': f'Bearer {self.plugin.token}'}, json={'username': username}, timeout=10)
+                    if resp.status_code == 200:
+                        # Aggressive speech suppression
+                        def announce():
+                            speech.setSpeechMode(speech.SpeechMode.off)
+                            self.loadFriendsData()
+                            
+                            def speak_message():
+                                speech.setSpeechMode(speech.SpeechMode.talk)
+                                ui.message(_("Request sent!"))
+                                speech.setSpeechMode(speech.SpeechMode.off)
+                                wx.CallLater(200, lambda: speech.setSpeechMode(speech.SpeechMode.talk))
+                            
+                            wx.CallLater(100, speak_message)
+                        wx.CallAfter(announce)
+                    else: wx.CallAfter(lambda: ui.message(_("Error")))
+                except: wx.CallAfter(lambda: ui.message(_("Connection error")))
+            threading.Thread(target=add, daemon=True).start()
 
 class SettingsDialog(wx.Dialog):
     def __init__(self, parent, plugin):
@@ -2462,8 +2566,22 @@ class SettingsDialog(wx.Dialog):
             self.plugin.config[key] = check.GetValue()
         
         self.plugin.saveConfig()
-        ui.message(_("Saved!"))
-        self.Close()
+        
+        # Aggressively suppress ALL window title announcements
+        import speech
+        speech.setSpeechMode(speech.SpeechMode.off)
+        
+        def announce_and_close():
+            # Announce message
+            speech.setSpeechMode(speech.SpeechMode.talk)
+            ui.message(_("Saved!"))
+            # Keep speech OFF during close
+            speech.setSpeechMode(speech.SpeechMode.off)
+            wx.CallLater(10, self.Close)
+            # Turn speech back ON after everything settles
+            wx.CallLater(200, lambda: speech.setSpeechMode(speech.SpeechMode.talk))
+        
+        wx.CallLater(100, announce_and_close)
 
 class AccountDialog(wx.Dialog):
     def __init__(self, parent, plugin):
@@ -2561,5 +2679,19 @@ class AccountDialog(wx.Dialog):
             "auto_connect": self.autoCheck.GetValue()
         })
         self.plugin.saveConfig()
-        ui.message(_("Account settings saved!"))
-        self.Close()
+        
+        # Aggressively suppress ALL window title announcements
+        import speech
+        speech.setSpeechMode(speech.SpeechMode.off)
+        
+        def announce_and_close():
+            # Announce message
+            speech.setSpeechMode(speech.SpeechMode.talk)
+            ui.message(_("Account settings saved!"))
+            # Keep speech OFF during close
+            speech.setSpeechMode(speech.SpeechMode.off)
+            wx.CallLater(10, self.Close)
+            # Turn speech back ON after everything settles
+            wx.CallLater(200, lambda: speech.setSpeechMode(speech.SpeechMode.talk))
+        
+        wx.CallLater(100, announce_and_close)
