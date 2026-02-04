@@ -736,3 +736,9 @@ msgstr "Mensaje más antiguo"
 
 msgid "Newest message"
 msgstr "Mensaje más reciente"
+
+msgid "Maximum messages to load in chat history:"
+msgstr "Máximo de mensajes a cargar en el historial de chat:"
+
+msgid "(Lower = faster, Higher = more history)"
+msgstr "(Menor = más rápido, Mayor = más historial)"
